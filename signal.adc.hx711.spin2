@@ -1,7 +1,7 @@
 {
     --------------------------------------------
-    Filename: signal.adc.hx711.spin
-    Description: Driver for the HX711 24-bit ADC/load cell amplifier
+    Filename: signal.adc.hx711.spin2
+    Description: Driver for the HX711 24-bit ADC/load cell amplifier (P2 version)
     Author: Jesse Burt
     Copyright (c) 2023
     Started Jan 7, 2023
@@ -27,9 +27,8 @@ PUB startx(PD_SCK, DOUT): status
 '   DOUT: Data Out
     if (lookdown(PD_SCK: 0..31) and lookdown(DOUT: 0..31))
         longmove(@_PD_SCK, @PD_SCK, 2)
-        dira[_DOUT] := 0                        ' one-way serial interface
-        outa[_PD_SCK] := 0
-        dira[_PD_SCK] := 1
+        pinf(_DOUT)                             ' one-way serial interface
+        pinl(_PD_SCK)
         set_gain(128)
         return (cogid() + 1)
     ' If this point is reached, something above failed.
@@ -52,21 +51,25 @@ pub adc_data(): adc_word | bit
 
     { clock in 24 bit word }
     repeat bit from 0 to 23
-        outa[_PD_SCK] := 1
+        pinh(_PD_SCK)
         adc_word := (adc_word << 1)
-        outa[_PD_SCK] := 0
-        if (ina[_DOUT])
+        waitus(1)
+        pinl(_PD_SCK)
+        waitus(1)
+        if (pinr(_DOUT))
             adc_word++
 
     repeat _adc_gain
-        outa[_PD_SCK] := 1
-        outa[_PD_SCK] := 0
-    adc_word := (adc_word << 8) ~> 8            ' extend sign
+        pinh(_PD_SCK)
+        waitus(1)
+        pinl(_PD_SCK)
+        waitus(1)
+    adc_word := (adc_word << 8) sar 8            ' extend sign
 
 PUB adc_data_rdy(): flag
 ' Flag indicating ADC data ready
 '   Returns: TRUE (-1) or FALSE (0)
-    return (ina[_DOUT] == 0)
+    return (pinr(_DOUT) == 0)
 
 PUB set_adc_channel(ch)
 ' Set ADC channel for subsequent measurements

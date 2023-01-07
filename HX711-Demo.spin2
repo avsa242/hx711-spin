@@ -1,7 +1,7 @@
 {
     --------------------------------------------
-    Filename: HX711-Demo.spin
-    Description: Demo of the HX711 driver
+    Filename: HX711-Demo.spin2
+    Description: Demo of the HX711 driver (P2 version)
         * ADC word output
     Author: Jesse Burt
     Copyright (c) 2023
@@ -13,35 +13,34 @@
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkfreq    = cfg._clkfreq_def
+    _xtlfreq    = cfg._xtlfreq
 
 ' -- User-defined constants
-    SER_BAUD    = 115_200
+    SER_BAUD    = 2_000_000
 
-    PD_SCK      = 8
-    DOUT        = 9
+    PD_SCK      = 0
+    DOUT        = 1
 ' --
 
 OBJ
 
-    cfg   : "boardcfg.flip"
+    cfg   : "boardcfg.p2eval"
     ser   : "com.serial.terminal.ansi"
-    time  : "time"
     adc   : "signal.adc.hx711"
 
 PUB main() | adc_word
 
     setup()
+
     repeat
         ser.pos_xy(0, 3)
         adc_word := adc.adc_data()
-        ser.printf2(@"ADC word: %6.6x (%9.9d)", adc_word, adc_word)
+        ser.printf(@"ADC word: %6.6x (%9.9d)", adc_word, adc_word)
 
-PUB setup
+PUB setup()
 
     ser.start(SER_BAUD)
-    time.msleep(30)
     ser.clear()
     ser.strln(string("Serial terminal started"))
 
