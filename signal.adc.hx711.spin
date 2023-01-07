@@ -13,7 +13,7 @@
 CON
 
     { limits }
-    ADC_MIN = $80_00_00
+    ADC_MIN = $ff_80_00_00
     ADC_MAX = $7f_ff_ff
 
     { set_adc_channel() symbols }
@@ -76,6 +76,11 @@ PUB adc_data_rdy(): flag
 ' Flag indicating ADC data ready
 '   Returns: TRUE (-1) or FALSE (0)
     return (ina[_DOUT] == 0)
+
+PUB adc_gain(): g
+' Get currently set ADC gain
+'   Returns: integer
+    return lookup(_adc_gain: 128, 32, 64)
 
 PUB set_adc_bias(b)
 ' Set ADC bias/offset
