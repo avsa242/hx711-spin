@@ -12,6 +12,10 @@
 
 CON
 
+    { limits }
+    ADC_MIN = $80_00_00
+    ADC_MAX = $7f_ff_ff
+
     { set_adc_channel() symbols }
     CH_A    = 0
     CH_B    = 1
@@ -19,6 +23,7 @@ CON
 VAR
 
     long _PD_SCK, _DOUT
+    long _adc_bias
     byte _adc_chan, _adc_gain
 
 PUB startx(PD_SCK, DOUT): status
@@ -41,7 +46,11 @@ PUB defaults()
 ' Factory default settings
     set_gain(128)                               ' 128x gain (channel A)
 
-pub adc_data(): adc_word | bit
+PUB adc_bias(): b
+' Get currently set ADC bias/offset
+    return _adc_bias
+
+PUB adc_data(): adc_word | bit
 ' Read ADC measurement
 '   Returns: signed 24-bit ADC word
 '   NOTE: The first sample returned will reflect the gain that was set by the previous call
@@ -61,12 +70,17 @@ pub adc_data(): adc_word | bit
     repeat _adc_gain
         outa[_PD_SCK] := 1
         outa[_PD_SCK] := 0
-    adc_word := (adc_word << 8) ~> 8            ' extend sign
+    adc_word := ((adc_word << 8) ~> 8) + _adc_bias  ' extend sign
 
 PUB adc_data_rdy(): flag
 ' Flag indicating ADC data ready
 '   Returns: TRUE (-1) or FALSE (0)
     return (ina[_DOUT] == 0)
+
+PUB set_adc_bias(b)
+' Set ADC bias/offset
+'   Valid values: -8_388_608 .. 8_388_607
+    _adc_bias := (ADC_MIN #> b <# ADC_MAX)
 
 PUB set_adc_channel(ch)
 ' Set ADC channel for subsequent measurements
