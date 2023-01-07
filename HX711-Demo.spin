@@ -2,7 +2,7 @@
     --------------------------------------------
     Filename: HX711-Demo.spin
     Description: Demo of the HX711 driver
-        * ADC word output
+        * Measured weight output
     Author: Jesse Burt
     Copyright (c) 2023
     Started Jan 7, 2023
@@ -30,19 +30,23 @@ OBJ
     time  : "time"
     adc   : "signal.adc.hx711"
 
-PUB main() | adc_word
+PUB main{} | adc_word
 
-    setup()
+    setup{}
+
+    { check your load cell's specifications to set these }
+    adc.set_loadcell_max_weight(1000)           ' grams
+    adc.set_loadcell_output(1_200)              ' load cell rated output in microvolts per Volt
+
     repeat
         ser.pos_xy(0, 3)
-        adc_word := adc.adc_data()
-        ser.printf2(@"ADC word: %6.6x (%9.9d)", adc_word, adc_word)
+        ser.printf1(@"Weight: %9.9dg\n\r", adc.grams{})
 
-PUB setup
+PUB setup{}
 
     ser.start(SER_BAUD)
     time.msleep(30)
-    ser.clear()
+    ser.clear{}
     ser.strln(string("Serial terminal started"))
 
     if (adc.startx(PD_SCK, DOUT))

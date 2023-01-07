@@ -24,6 +24,8 @@ VAR
 
     long _PD_SCK, _DOUT
     long _adc_bias
+    long _adc_res_kg, _adc_res_g
+    long _max_wt
     byte _adc_chan, _adc_gain
 
 PUB startx(PD_SCK, DOUT): status
@@ -85,6 +87,15 @@ PUB adc_gain(): g
 '   Returns: integer
     return lookup(_adc_gain: 128, 32, 64)
 
+PUB adc_word2grams(adc_word)
+' Convert ADC word to weight in grams
+    return (adc_word / _adc_res_g)
+
+PUB grams(): g
+' Measured weight
+'   Returns: grams
+    return adc_word2grams( adc_data() )
+
 PUB set_adc_bias(b)
 ' Set ADC bias/offset
 '   Valid values: -8_388_608 .. 8_388_607
@@ -107,6 +118,21 @@ PUB set_gain(g)
     _adc_gain := lookdown(g: 128, 32, 64)
     if (_adc_gain == 2)
         set_adc_channel(CH_B)
+
+PUB set_loadcell_max_weight(max_wt)
+' Set load cell rated maximum weight, in grams
+    _max_wt := max_wt
+
+PUB set_loadcell_output(v) | diff_ratio, full_scl
+' Set load cell rated output, in microvolts
+'   (e.g., 1.2mV/V rating: 1_200)
+'   ((load cell output * gain) / HX711 half-scale V)
+    diff_ratio := (v * adc_gain()) * 1000
+    full_scl := (diff_ratio / 0_500)
+
+    { calculate ADC LSBs per unit }
+    _adc_res_kg := muldiv64(full_scl, $80_00_00, (_max_wt * 1000))
+    _adc_res_g := _adc_res_kg / 1000
 
 DAT
 {

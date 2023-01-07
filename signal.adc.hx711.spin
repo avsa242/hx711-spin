@@ -16,7 +16,7 @@ CON
     ADC_MIN = $ff_80_00_00
     ADC_MAX = $7f_ff_ff
 
-    { set_adc_channel() symbols }
+    { set_adc_channel{} symbols }
     CH_A    = 0
     CH_B    = 1
 
@@ -24,7 +24,13 @@ VAR
 
     long _PD_SCK, _DOUT
     long _adc_bias
+    long _adc_res_kg, _adc_res_g
+    long _max_wt
     byte _adc_chan, _adc_gain
+
+OBJ
+
+    umath64: "math.unsigned64"
 
 PUB startx(PD_SCK, DOUT): status
 ' Start the driver using custom I/O settings
@@ -36,28 +42,28 @@ PUB startx(PD_SCK, DOUT): status
         outa[_PD_SCK] := 0
         dira[_PD_SCK] := 1
         set_gain(128)
-        return (cogid() + 1)
+        return (cogid{} + 1)
     ' If this point is reached, something above failed.
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
-PUB defaults()
+PUB defaults{}
 ' Factory default settings
     set_gain(128)                               ' 128x gain (channel A)
 
-PUB adc_bias(): b
+PUB adc_bias{}: b
 ' Get currently set ADC bias/offset
     return _adc_bias
 
-PUB adc_data(): adc_word | bit
+PUB adc_data{}: adc_word | bit
 ' Read ADC measurement
 '   Returns: signed 24-bit ADC word
 '   NOTE: The first sample returned will reflect the gain that was set by the previous call
 '       to this method.
     adc_word := 0
 
-    repeat until adc_data_rdy()                 ' must wait, or clock pulses may be misinterpreted
+    repeat until adc_data_rdy{}                 ' must wait, or clock pulses may be misinterpreted
 
     { clock in 24 bit word }
     repeat bit from 0 to 23
@@ -72,15 +78,24 @@ PUB adc_data(): adc_word | bit
         outa[_PD_SCK] := 0
     adc_word := ((adc_word << 8) ~> 8) + _adc_bias  ' extend sign
 
-PUB adc_data_rdy(): flag
+PUB adc_data_rdy{}: flag
 ' Flag indicating ADC data ready
 '   Returns: TRUE (-1) or FALSE (0)
     return (ina[_DOUT] == 0)
 
-PUB adc_gain(): g
+PUB adc_gain{}: g
 ' Get currently set ADC gain
 '   Returns: integer
     return lookup(_adc_gain: 128, 32, 64)
+
+PUB adc_word2grams(adc_word)
+' Convert ADC word to weight in grams
+    return (adc_word / _adc_res_g)
+
+PUB grams{}: g
+' Measured weight
+'   Returns: grams
+    return adc_word2grams( adc_data{} )
 
 PUB set_adc_bias(b)
 ' Set ADC bias/offset
@@ -104,6 +119,21 @@ PUB set_gain(g)
     _adc_gain := lookdown(g: 128, 32, 64)
     if (_adc_gain == 2)
         set_adc_channel(CH_B)
+
+PUB set_loadcell_max_weight(max_wt)
+' Set load cell rated maximum weight, in grams
+    _max_wt := max_wt
+
+PUB set_loadcell_output(v) | diff_ratio, full_scl
+' Set load cell rated output, in microvolts
+'   (e.g., 1.2mV/V rating: 1_200)
+'   ((load cell output * gain) / HX711 half-scale V)
+    diff_ratio := (v * adc_gain{}) * 1000
+    full_scl := (diff_ratio / 0_500)
+
+    { calculate ADC LSBs per unit }
+    _adc_res_kg := umath64.multdiv(full_scl, $80_00_00, (_max_wt * 1000))
+    _adc_res_g := _adc_res_kg / 1000
 
 DAT
 {
