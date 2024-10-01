@@ -1,38 +1,31 @@
 {
-    --------------------------------------------
-    Filename: HX711-Demo.spin
-    Description: Demo of the HX711 driver
+----------------------------------------------------------------------------------------------------
+    Filename:       HX711-Demo.spin
+    Description:    Demo of the HX711 driver
         * Measured weight output
-    Author: Jesse Burt
-    Copyright (c) 2023
-    Started Jan 7, 2023
-    Updated Jan 7, 2023
-    See end of file for terms of use.
-    --------------------------------------------
+    Author:         Jesse Burt
+    Started:        Jan 7, 2023
+    Updated:        Oct 1, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = xtal1+pll16x
+    _xinfreq    = 5_000_000
 
-' -- User-defined constants
-    SER_BAUD    = 115_200
-
-    PD_SCK      = 8
-    DOUT        = 9
-' --
 
 OBJ
 
-    cfg   : "boardcfg.flip"
-    ser   : "com.serial.terminal.ansi"
-    time  : "time"
-    adc   : "signal.adc.hx711"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
+    adc:    "signal.adc.hx711" | SCK=0, MISO=1
 
-PUB main{} | adc_word
 
-    setup{}
+PUB main() | adc_word
+
+    setup()
 
     { check your load cell's specifications to set these }
     adc.set_loadcell_max_weight(1000)           ' grams
@@ -40,24 +33,26 @@ PUB main{} | adc_word
 
     repeat
         ser.pos_xy(0, 3)
-        ser.printf1(@"Weight: %9.9dg\n\r", adc.grams{})
+        ser.printf1(@"Weight: %9.9dg\n\r", adc.grams())
 
-PUB setup{}
 
-    ser.start(SER_BAUD)
+PUB setup()
+
+    ser.start()
     time.msleep(30)
-    ser.clear{}
-    ser.strln(string("Serial terminal started"))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
 
-    if (adc.startx(PD_SCK, DOUT))
+    if ( adc.start() )
         ser.strln(@"HX711 driver started")
     else
         ser.strln(@"HX711 driver failed to start - halting")
         repeat
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

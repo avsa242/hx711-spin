@@ -1,24 +1,30 @@
 {
-    --------------------------------------------
-    Filename: signal.adc.hx711.spin
-    Description: Driver for the HX711 24-bit ADC/load cell amplifier
-    Author: Jesse Burt
-    Copyright (c) 2023
-    Started Jan 7, 2023
-    Updated Jan 7, 2023
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       signal.adc.hx711.spin
+    Description:    Driver for the HX711 24-bit ADC/load cell amplifier
+    Author:         Jesse Burt
+    Started:        Jan 7, 2023
+    Updated:        Aug 14, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
+
 CON
+
+    { default I/O configuration - these can be overridden by the parent object }
+    SCK     = 0
+    MISO    = 1
+
 
     { limits }
     ADC_MIN = $ff_80_00_00
     ADC_MAX = $7f_ff_ff
 
-    { set_adc_channel{} symbols }
+    { set_adc_channel() symbols }
     CH_A    = 0
     CH_B    = 1
+
 
 VAR
 
@@ -32,38 +38,51 @@ OBJ
 
     umath64: "math.unsigned64"
 
+
+PUB null()
+' This is not a top-level object
+
+
+PUB start(): status
+' Start the driver using default I/O settings
+    return startx(SCK, MISO)
+
+
 PUB startx(PD_SCK, DOUT): status
 ' Start the driver using custom I/O settings
 '   PD_SCK: PowerDown/Serial Clock
 '   DOUT: Data Out
-    if (lookdown(PD_SCK: 0..31) and lookdown(DOUT: 0..31))
+    if ( lookdown(PD_SCK: 0..31) and lookdown(DOUT: 0..31) )
         longmove(@_PD_SCK, @PD_SCK, 2)
         dira[_DOUT] := 0                        ' one-way serial interface
         outa[_PD_SCK] := 0
         dira[_PD_SCK] := 1
         set_gain(128)
-        return (cogid{} + 1)
+        return (cogid() + 1)
     ' If this point is reached, something above failed.
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
-PUB defaults{}
+
+PUB defaults()
 ' Factory default settings
     set_gain(128)                               ' 128x gain (channel A)
 
-PUB adc_bias{}: b
+
+PUB adc_bias(): b
 ' Get currently set ADC bias/offset
     return _adc_bias
 
-PUB adc_data{}: adc_word | bit
+
+PUB adc_data(): adc_word | bit
 ' Read ADC measurement
 '   Returns: signed 24-bit ADC word
 '   NOTE: The first sample returned will reflect the gain that was set by the previous call
 '       to this method.
     adc_word := 0
 
-    repeat until adc_data_rdy{}                 ' must wait, or clock pulses may be misinterpreted
+    repeat until adc_data_rdy()                 ' must wait, or clock pulses may be misinterpreted
 
     { clock in 24 bit word }
     repeat bit from 0 to 23
@@ -78,29 +97,35 @@ PUB adc_data{}: adc_word | bit
         outa[_PD_SCK] := 0
     adc_word := ((adc_word << 8) ~> 8) + _adc_bias  ' extend sign
 
-PUB adc_data_rdy{}: flag
+
+PUB adc_data_rdy(): flag
 ' Flag indicating ADC data ready
 '   Returns: TRUE (-1) or FALSE (0)
     return (ina[_DOUT] == 0)
 
-PUB adc_gain{}: g
+
+PUB adc_gain(): g
 ' Get currently set ADC gain
 '   Returns: integer
     return lookup(_adc_gain: 128, 32, 64)
 
-PUB adc_word2grams(adc_word)
+
+PUB adc_word2grams(adc_word): g
 ' Convert ADC word to weight in grams
     return (adc_word / _adc_res_g)
 
-PUB grams{}: g
+
+PUB grams(): g
 ' Measured weight
 '   Returns: grams
-    return adc_word2grams( adc_data{} )
+    return adc_word2grams( adc_data() )
+
 
 PUB set_adc_bias(b)
 ' Set ADC bias/offset
 '   Valid values: -8_388_608 .. 8_388_607
     _adc_bias := (ADC_MIN #> b <# ADC_MAX)
+
 
 PUB set_adc_channel(ch)
 ' Set ADC channel for subsequent measurements
@@ -109,6 +134,7 @@ PUB set_adc_channel(ch)
 '       CH_B (1): channel B
 '   NOTE: Channel B is limited to gain factor 32 (hardware limitation)
     _adc_chan := CH_A #> ch <# CH_B
+
 
 PUB set_gain(g)
 ' Set ADC gain factor
@@ -120,24 +146,27 @@ PUB set_gain(g)
     if (_adc_gain == 2)
         set_adc_channel(CH_B)
 
+
 PUB set_loadcell_max_weight(max_wt)
 ' Set load cell rated maximum weight, in grams
     _max_wt := max_wt
+
 
 PUB set_loadcell_output(v) | diff_ratio, full_scl
 ' Set load cell rated output, in microvolts
 '   (e.g., 1.2mV/V rating: 1_200)
 '   ((load cell output * gain) / HX711 half-scale V)
-    diff_ratio := (v * adc_gain{}) * 1000
+    diff_ratio := (v * adc_gain()) * 1000
     full_scl := (diff_ratio / 0_500)
 
     { calculate ADC LSBs per unit }
     _adc_res_kg := umath64.multdiv(full_scl, $80_00_00, (_max_wt * 1000))
     _adc_res_g := _adc_res_kg / 1000
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

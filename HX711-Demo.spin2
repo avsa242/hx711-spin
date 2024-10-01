@@ -1,38 +1,32 @@
 {
-    --------------------------------------------
-    Filename: HX711-Demo.spin2
-    Description: Demo of the HX711 driver (P2 version)
+----------------------------------------------------------------------------------------------------
+    Filename:       HX711-Demo.spin2
+    Description:    Demo of the HX711 driver
         * Measured weight output
-    Author: Jesse Burt
-    Copyright (c) 2023
-    Started Jan 7, 2023
-    Updated Jan 7, 2023
-    See end of file for terms of use.
-    --------------------------------------------
+    Author:         Jesse Burt
+    Started:        Jan 7, 2023
+    Updated:        Oct 1, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
 
-    _clkfreq    = cfg._clkfreq_def
-    _xtlfreq    = cfg._xtlfreq
+    _clkfreq    = 180_000_000
+    _xtlfreq    = 20_000_000
 
-' -- User-defined constants
-    SER_BAUD    = 2_000_000
-
-    PD_SCK      = 0
-    DOUT        = 1
-' --
 
 OBJ
 
-    cfg   : "boardcfg.p2eval"
-    ser   : "com.serial.terminal.ansi"
-    adc   : "signal.adc.hx711"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=2_000_000
+    adc:    "signal.adc.hx711" | SCK=0, MISO=1
+
 
 PUB main() | adc_word
 
     setup()
 
+    { check your load cell's specifications to set these }
     adc.set_loadcell_max_weight(1000)           ' grams
     adc.set_loadcell_output(1_200)              ' load cell rated output in microvolts per Volt
 
@@ -40,21 +34,24 @@ PUB main() | adc_word
         ser.pos_xy(0, 3)
         ser.printf(@"Weight: %9.9dg\n\r", adc.grams())
 
+
 PUB setup()
 
-    ser.start(SER_BAUD)
-    ser.clear()
-    ser.strln(string("Serial terminal started"))
+    ser.start()
 
-    if (adc.startx(PD_SCK, DOUT))
+    ser.clear()
+    ser.strln(@"Serial terminal started")
+
+    if ( adc.start() )
         ser.strln(@"HX711 driver started")
     else
         ser.strln(@"HX711 driver failed to start - halting")
         repeat
 
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
