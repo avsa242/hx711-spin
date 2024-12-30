@@ -4,7 +4,7 @@
     Description:    Driver for the HX711 24-bit ADC/load cell amplifier
     Author:         Jesse Burt
     Started:        Jan 7, 2023
-    Updated:        Aug 14, 2024
+    Updated:        Dec 30, 2024
     Copyright (c) 2024 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
@@ -15,15 +15,18 @@ CON
     { default I/O configuration - these can be overridden by the parent object }
     SCK     = 0
     MISO    = 1
+    ADC_DR  = 10                                ' ADC data rate (10 or 80; must match RATE pin)
 
 
     { limits }
     ADC_MIN = $ff_80_00_00
     ADC_MAX = $7f_ff_ff
 
+
     { set_adc_channel() symbols }
-    CH_A    = 0
-    CH_B    = 1
+    CH_A    = 0                                 ' channel A, 128x gain
+    CH_B    = 1                                 ' channel B, 32x gain
+    CH_A64  = 2                                 ' channel A, 64x gain
 
 
 VAR
@@ -32,7 +35,8 @@ VAR
     long _adc_bias
     long _adc_res_kg, _adc_res_g
     long _max_wt
-    byte _adc_chan, _adc_gain
+    byte _adc_chan
+
 
 OBJ
 
@@ -51,7 +55,7 @@ PUB start(): status
 PUB startx(PD_SCK, DOUT): status
 ' Start the driver using custom I/O settings
 '   PD_SCK: PowerDown/Serial Clock
-'   DOUT: Data Out
+'   DOUT:   Data Out
     if ( lookdown(PD_SCK: 0..31) and lookdown(DOUT: 0..31) )
         longmove(@_PD_SCK, @PD_SCK, 2)
         dira[_DOUT] := 0                        ' one-way serial interface
@@ -75,7 +79,7 @@ PUB adc_bias(): b
     return _adc_bias
 
 
-PUB adc_data(): adc_word | bit
+PUB adc_data(): adc_word
 ' Read ADC measurement
 '   Returns: signed 24-bit ADC word
 '   NOTE: The first sample returned will reflect the gain that was set by the previous call
@@ -85,17 +89,24 @@ PUB adc_data(): adc_word | bit
     repeat until adc_data_rdy()                 ' must wait, or clock pulses may be misinterpreted
 
     { clock in 24 bit word }
-    repeat bit from 0 to 23
+    repeat 24
         outa[_PD_SCK] := 1
         adc_word := (adc_word << 1)
         outa[_PD_SCK] := 0
-        if (ina[_DOUT])
-            adc_word++
+        adc_word |= ina[_DOUT]
 
-    repeat _adc_gain
+    repeat _adc_chan                            ' set channel/gain for next measurement
         outa[_PD_SCK] := 1
         outa[_PD_SCK] := 0
-    adc_word := ((adc_word << 8) ~> 8) + _adc_bias  ' extend sign
+
+    adc_word := ((adc_word << 8) ~> 8)          ' extend sign from bit 23
+
+    if ( _adc_chan == 2 )                       ' scale appropriately for the input/gain settings
+        adc_word *= 4                           '   32x gain
+    elseif ( _adc_chan == 3 )
+        adc_word *= 2                           '   64x gain
+
+    adc_word += _adc_bias                       ' add bias/offset
 
 
 PUB adc_data_rdy(): flag
@@ -107,12 +118,24 @@ PUB adc_data_rdy(): flag
 PUB adc_gain(): g
 ' Get currently set ADC gain
 '   Returns: integer
-    return lookup(_adc_gain: 128, 32, 64)
+    return lookup(_adc_chan: 128, 32, 64)
 
 
 PUB adc_word2grams(adc_word): g
 ' Convert ADC word to weight in grams
     return (adc_word / _adc_res_g)
+
+
+PUB calibrate_adc() | a
+' Calibrate ADC/set 'zero'
+    a := 0
+    set_adc_bias(0)                             ' reset the ADC bias
+
+    repeat ADC_DR                               ' average approx 1 second of readings
+        a += adc_data()
+    a /= ADC_DR
+
+    set_adc_bias(-a)                            ' set new bias/zero
 
 
 PUB grams(): g
@@ -130,10 +153,11 @@ PUB set_adc_bias(b)
 PUB set_adc_channel(ch)
 ' Set ADC channel for subsequent measurements
 '   Valid values:
-'       CH_A (0): channel A (default)
-'       CH_B (1): channel B
+'       CH_A (0):   channel A (default)
+'       CH_B (1):   channel B
+'       CH_A64 (2): channel A, gain 64
 '   NOTE: Channel B is limited to gain factor 32 (hardware limitation)
-    _adc_chan := CH_A #> ch <# CH_B
+    _adc_chan := (CH_A #> ch <# CH_A64)+1
 
 
 PUB set_gain(g)
@@ -142,9 +166,7 @@ PUB set_gain(g)
 '   NOTE: Gain factor 32 is only available on channel B.
 '         Gain factors 64 and 128 are only available on channel A.
 '         Gain selection therefore automatically selects the implied channel.
-    _adc_gain := lookdown(g: 128, 32, 64)
-    if (_adc_gain == 2)
-        set_adc_channel(CH_B)
+    set_adc_channel( lookdownz(g: 128, 32, 64) )
 
 
 PUB set_loadcell_max_weight(max_wt)

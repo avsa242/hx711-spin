@@ -5,7 +5,7 @@
         * Measured weight output
     Author:         Jesse Burt
     Started:        Jan 7, 2023
-    Updated:        Oct 1, 2024
+    Updated:        Dec 30, 2024
     Copyright (c) 2024 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
@@ -22,17 +22,22 @@ OBJ
     adc:    "signal.adc.hx711" | SCK=0, MISO=1
 
 
-PUB main() | adc_word
+PUB main()
 
     setup()
 
     { check your load cell's specifications to set these }
     adc.set_loadcell_max_weight(1000)           ' grams
     adc.set_loadcell_output(1_200)              ' load cell rated output in microvolts per Volt
+    adc.set_adc_channel(0)
 
+    ser.pos_xy(0, 3)
+    ser.strln(@"Press 'z' to zero the scale")
     repeat
-        ser.pos_xy(0, 3)
+        ser.pos_xy(0, 4)
         ser.printf(@"Weight: %9.9dg\n\r", adc.grams())
+        if ( ser.getchar_noblock() == "z" )
+            adc.calibrate_adc()
 
 
 PUB setup()

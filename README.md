@@ -12,7 +12,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the AVIA Se
 * Set ADC gain
 * Set ADC channel
 * Set ADC bias/offset
-* Measure weight in grams (*measurements not verified*)
+* Measure weight in grams
 
 
 ## Requirements
@@ -30,13 +30,19 @@ P2/SPIN2:
 |-----------|----------|------------------------|--------------|-----------------------|
 | P1        | SPIN1    | FlexSpin (6.9.4)       | Bytecode     | OK                    |
 | P1        | SPIN1    | FlexSpin (6.9.4)       | Native/PASM  | OK                    |
-| P2        | SPIN2    | FlexSpin (6.9.4)       | NuCode       | Untested              |
+| P2        | SPIN2    | FlexSpin (6.9.4)       | NuCode       | OK                    |
 | P2        | SPIN2    | FlexSpin (6.9.4)       | Native/PASM2 | OK                    |
 
 (other versions or toolchains not listed are __not supported__, and _may or may not_ work)
 
 
+## Hardware compatibility
+
+* Tested with Soldered Electronics' [HX711 PCB P/N 333005](https://www.digikey.com/en/products/detail/soldered-electronics/333005/21720457)
+* Measurements compared to uncalibrated commercial scale (model unknown)
+
+
 ## Limitations
 
-* Very early in development - may malfunction, or outright fail to build
+* TBD
 
